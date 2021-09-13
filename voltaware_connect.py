@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import json
-import time
 import typing as tp
 import threading
 import logging
+import json
+import time
 import pika
 import yaml
 
@@ -23,20 +23,28 @@ def read_config(path: str) -> tp.Dict[str, str]:
             time.sleep(5)
 
 
-def callback(ch, method, properties, body):
+def callback(ch, method, properties, body) -> None:
+    """
+    get data from sensors and save it to dictionary
+    """
+
     data = body.decode("utf-8")
     data_js = json.loads(data)
-    data_id[data_js['sensor']['id']] = data
+    data_id[data_js["sensor"]["id"]] = data
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 
-def send_data(config: dict) -> None:
+def send_data(account) -> None:
     """
     send data to frontier parachain "robonomics" from all devices
     """
-    for account in config["accounts"].keys():
-        substrate_datalog = substrate_connection(config["substrate_wss"])
-        write_datalog(substrate_datalog, account["seed"], data_id[account["id"]])
+    logging.info(f"send data from account: {account}")
+    substrate_datalog = substrate_connection(config["substrate_wss"])
+    write_datalog(
+        substrate_datalog,
+        config["accounts"][account]["seed"],
+        data_id[int(config["accounts"][account]["id"])],
+    )
 
 
 def substrate_connection(url: str) -> tp.Any:
@@ -68,7 +76,7 @@ def substrate_connection(url: str) -> tp.Any:
                             ["start", "Compact<u64>"],
                             ["end", "Compact<u64>"],
                         ],
-                    }
+                    },
                 }
             },
         )
@@ -102,11 +110,7 @@ def write_datalog(substrate, seed: str, data: str) -> str or None:
     try:
         logging.info("Creating substrate call for recording datalog")
         call = substrate.compose_call(
-            call_module="Datalog",
-            call_function="record",
-            call_params={
-                'record': data
-            }
+            call_module="Datalog", call_function="record", call_params={"record": data}
         )
         logging.info(f"Successfully created a call for recording datalog:\n{call}")
         logging.info("Creating extrinsic for recording datalog")
@@ -118,14 +122,16 @@ def write_datalog(substrate, seed: str, data: str) -> str or None:
     try:
         logging.info("Submitting extrinsic for recording datalog")
         receipt = substrate.submit_extrinsic(extrinsic, wait_for_inclusion=True)
-        logging.info(f"Extrinsic {receipt.extrinsic_hash} for recording datalog sent and included in block {receipt.block_hash}")
+        logging.info(
+            f"Extrinsic {receipt.extrinsic_hash} for recording datalog sent and included in block {receipt.block_hash}"
+        )
         return receipt.extrinsic_hash
     except Exception as e:
         logging.error(f"Failed to submit extrinsic for recording datalog: {e}")
         return None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # set up logging
     logging.basicConfig(
         level=logging.INFO,
@@ -141,33 +147,40 @@ if __name__ == '__main__':
     logging.info("establishing connection to RabbitMQ")
     credential = pika.PlainCredentials(
         config["RabbitMQ"]["credentials"]["login"],
-        config["RabbitMQ"]["credentials"]["passwrd"]
+        config["RabbitMQ"]["credentials"]["passwrd"],
     )
     params = pika.ConnectionParameters(
         host=config["RabbitMQ"]["host"],
         port=int(config["RabbitMQ"]["port"]),
-        virtual_host='/',
+        virtual_host="/",
         heartbeat=60,
-        credentials=credential
+        credentials=credential,
     )
     connection = pika.BlockingConnection(params)
-
     channel = connection.channel()
     channel.basic_qos(prefetch_count=10)
-    channel.basic_consume('aira-event', callback)
+    channel.basic_consume("aira-event", callback)
+
     try:
-        channel.start_consuming()
+        channel = threading.Thread(target=channel.start_consuming)
+        channel.start()
         logging.info("Successfully established connection to RabbitMQ")
     except Exception as e:
-        channel.stop_consuming()
+        channel.join()
         connection.close()
         logging.error(f"Failed to connect to RabbitMQ: {e}")
 
     while True:
-        threads_num = threading.active_count()
-        if threads_num > 20:
-            logging.warning("Too many opened sending requests, waiting")
-            time.sleep(12)
-        send_datalog = threading.Thread(target=send_data)
-        send_datalog.start()
-        time.sleep(4)
+        try:
+            threads_num = threading.active_count()
+            if threads_num > 32:
+                logging.warning("Too many opened sending requests, waiting")
+                time.sleep(12)
+            for account in config["accounts"].keys():
+                send_datalog = threading.Thread(target=send_data, args=(account,))
+                send_datalog.start()
+            time.sleep(4)
+        except KeyboardInterrupt:
+            channel.join(timeout=5)
+            connection.close()
+            break
