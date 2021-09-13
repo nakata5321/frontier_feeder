@@ -1,0 +1,21 @@
+# fill info abouut accounts: seed and sensor id
+# insert all accounts as "accountN" where N - integer number
+# example:
+# account1: number of account
+#     seed: private seed
+#     id: id of devise
+accounts:
+  account1:
+    seed: ""
+    id: ""
+  account2:
+    seed: ""
+    id: ""
+
+substrate_wss: "" #substrate end point or url
+RabbitMQ:
+  credentials:
+    login: "aira"
+    passwrd: "9869ff4d68"
+  host: "partner-broker.voltaware.com"
+  port: "5672"
