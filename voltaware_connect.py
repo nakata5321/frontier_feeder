@@ -44,6 +44,8 @@ class Account:
     def __init__(self, name: str, config: dict) -> None:
         logging.info(f"creating account instance with name {name}")
         self.name = name
+        self.nonce = 0
+        self.pub_adr = config['accounts'][self.name]['pub_adr']
         self.sensor_id = int(config["accounts"][self.name]["id"])
         self.seed = config["accounts"][self.name]["seed"]
         self.url = config["substrate_wss"]
@@ -116,8 +118,9 @@ class Account:
             )
             logging.info(f"Successfully created a call for recording datalog:\n{call}")
             logging.info("Creating extrinsic for recording datalog")
+            self.__inc_nonce()
             extrinsic = self.substrate.create_signed_extrinsic(
-                call=call, keypair=keypair
+                call=call, keypair=keypair, nonce=self.nonce
             )
         except Exception as e:
             logging.error(f"Failed to create an extrinsic for recording datalog: {e}")
@@ -136,6 +139,18 @@ class Account:
         except Exception as e:
             logging.error(f"Failed to submit extrinsic for recording datalog: {e}")
             return None
+
+    def __inc_nonce(self):
+        self.nonce_current = self.substrate.get_account_nonce(self.pub_adr)
+        self.nonce = self.nonce_current + 1
+        logging.info(f"Current nonce is: {self.nonce}")
+        '''
+        result = self.substrate.query(
+            module = 'System',
+            storage_function = 'Account',
+            params = str(self.pub_adr)
+        return result.value['nonce']
+        '''
 
     def send_data(self) -> None:
         """

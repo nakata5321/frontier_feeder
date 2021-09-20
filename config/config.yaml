@@ -3,14 +3,17 @@
 # example:
 # account1: number of account
 #     seed: private seed
-#     id: id of devise
+#     id: id of device
+#     pub_adr: public address of account
 accounts:
   account1:
     seed: ""
     id: ""
+    pub_adr: ""
   account2:
     seed: ""
     id: ""
+    pub_adr: ""
 
 substrate_wss: "" #substrate end point or url
 RabbitMQ:
