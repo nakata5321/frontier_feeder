@@ -44,7 +44,6 @@ class Account:
     def __init__(self, name: str, config: dict) -> None:
         logging.info(f"creating account instance with name {name}")
         self.name = name
-        self.nonce = 0
         self.pub_adr = config['accounts'][self.name]['pub_adr']
         self.sensor_id = int(config["accounts"][self.name]["id"])
         self.seed = config["accounts"][self.name]["seed"]
@@ -118,9 +117,8 @@ class Account:
             )
             logging.info(f"Successfully created a call for recording datalog:\n{call}")
             logging.info("Creating extrinsic for recording datalog")
-            self.__inc_nonce()
             extrinsic = self.substrate.create_signed_extrinsic(
-                call=call, keypair=keypair, nonce=self.nonce
+                call=call, keypair=keypair
             )
         except Exception as e:
             logging.error(f"Failed to create an extrinsic for recording datalog: {e}")
@@ -140,17 +138,6 @@ class Account:
             logging.error(f"Failed to submit extrinsic for recording datalog: {e}")
             return None
 
-    def __inc_nonce(self):
-        self.nonce_current = self.substrate.get_account_nonce(self.pub_adr)
-        self.nonce = self.nonce_current + 1
-        logging.info(f"Current nonce is: {self.nonce}")
-        '''
-        result = self.substrate.query(
-            module = 'System',
-            storage_function = 'Account',
-            params = str(self.pub_adr)
-        return result.value['nonce']
-        '''
 
     def send_data(self) -> None:
         """
@@ -213,12 +200,12 @@ if __name__ == "__main__":
     while True:
         try:
             threads_num = threading.active_count()
-            if threads_num > 32:
+            if threads_num > 25:
                 logging.warning("Too many opened sending requests, waiting")
                 time.sleep(12)
             for account in accounts_list:
                 account.send_data()
-            time.sleep(4)
+            time.sleep(10)
         except KeyboardInterrupt:
             channel.join(timeout=5)
             connection.close()
