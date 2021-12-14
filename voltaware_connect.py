@@ -36,6 +36,7 @@ class Account:
         self.seed = config["accounts"][self.name]["seed"]
         self.url = config["substrate_wss"]
         self.substrate = RI.RobonomicsInterface(seed=self.seed, remote_ws=self.url)
+        self.current_nonce = self.substrate.get_account_nonce()
         logging.info(f"{self.name} successfully created")
 
     def send_data(self) -> None:
@@ -45,9 +46,10 @@ class Account:
         logging.info(f"send data from account: {self.name}")
         if self.sensor_id in Account.data_id:
             account_thread = threading.Thread(
-                target=self.substrate.record_datalog, args=(Account.data_id[self.sensor_id],)
+                target=self.substrate.record_datalog, args=(Account.data_id[self.sensor_id], self.current_nonce)
             )
             account_thread.start()
+            self.current_nonce = self.current_nonce + 1
         else:
             logging.warning(f"There is not sensor with id: {self.sensor_id}")
 
@@ -96,6 +98,7 @@ def main() -> None:
     accounts_list: tp.List[Account] = []
     for x in range(len(accounts_names_list)):
         accounts_list.append(Account(accounts_names_list[x], config))
+        time.sleep(1)
 
     while True:
         try:
