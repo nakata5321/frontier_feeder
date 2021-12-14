@@ -4,21 +4,19 @@
 # account1: number of account
 #     seed: private seed
 #     id: id of device
-#     pub_adr: public address of account
+
 accounts:
   account1:
     seed: ""
     id: ""
-    pub_adr: ""
   account2:
     seed: ""
     id: ""
-    pub_adr: ""
 
 substrate_wss: "" #substrate end point or url
 RabbitMQ:
   credentials:
-    login: "aira"
-    passwrd: "9869ff4d68"
+    login: ""
+    passwrd: ""
   host: "partner-broker.voltaware.com"
   port: "5672"
