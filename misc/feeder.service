@@ -1,0 +1,20 @@
+[Unit]
+Description=robonomics parachain data feeder. Data is takes from electricity sensors
+
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=15
+RuntimeMaxSec=900
+WorkingDirectory=/home/ubuntu/
+User=ubuntu
+
+OOMScoreAdjust=-1000
+
+ExecStart= /usr/bin/python3 /home/ubuntu/voltaware_connect.py
+
+
+[Install]
+WantedBy=multi-user.target
