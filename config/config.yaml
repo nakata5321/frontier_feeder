@@ -1,17 +1,23 @@
 # fill info about accounts: seed and sensor id
 # insert all accounts as "accountN" where N - integer number
 # example:
-# account1: number of account
-#     seed: private seed
-#     id: id of device
+# account1: name of account
+#     seed: private seed. Type - string
+#     id: id of device. Type - integer
+#     rws: Is account use RWS. Type - string
+#     subscription_owner_addr: public address of owner. Type - string
 
 accounts:
   account1:
     seed: ""
-    id: ""
+    id:
+    rws: ""
+    subscription_owner_addr: ""
   account2:
     seed: ""
-    id: ""
+    id:
+    rws: ""
+    subscription_owner_addr: ""
 
 substrate_wss: "" #substrate end point or url
 RabbitMQ:
@@ -19,4 +25,4 @@ RabbitMQ:
     login: ""
     passwrd: ""
   host: "partner-broker.voltaware.com"
-  port: "5672"
+  port: 5672

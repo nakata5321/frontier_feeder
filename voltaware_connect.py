@@ -31,13 +31,15 @@ class Account:
     def __init__(self, name: str, config: dict) -> None:
         logging.info(f"creating account instance with name {name}")
         self.name = name
-        # self.pub_adr = config["accounts"][self.name]["pub_adr"]
-        self.sensor_id = int(config["accounts"][self.name]["id"])
+        self.sensor_id = config["accounts"][self.name]["id"]
         self.seed = config["accounts"][self.name]["seed"]
         self.url = config["substrate_wss"]
         self.substrate = RI.RobonomicsInterface(seed=self.seed, remote_ws=self.url)
         self.current_nonce = self.substrate.get_account_nonce()
         logging.info(f"{self.name} successfully created")
+
+
+class DefAccount(Account):
 
     def send_data(self) -> None:
         """
@@ -47,6 +49,28 @@ class Account:
         if self.sensor_id in Account.data_id:
             account_thread = threading.Thread(
                 target=self.substrate.record_datalog, args=(Account.data_id[self.sensor_id], self.current_nonce)
+            )
+            account_thread.start()
+            self.current_nonce = self.current_nonce + 1
+        else:
+            logging.warning(f"There is not sensor with id: {self.sensor_id}")
+
+
+class RWSAccount(Account):
+
+    def __init__(self, name: str, config: dict):
+        super().__init__(name, config)
+        self.subscription_owner_address = config["accounts"][self.name]["subscription_owner_addr"]
+
+    def send_data(self) -> None:
+        """
+        send data to frontier parachain "robonomics" from all devices
+        """
+        logging.info(f"send data from account: {self.name}")
+        if self.sensor_id in Account.data_id:
+            account_thread = threading.Thread(
+                target=self.substrate.rws_record_datalog, args=(self.subscription_owner_address,
+                                                                Account.data_id[self.sensor_id])
             )
             account_thread.start()
             self.current_nonce = self.current_nonce + 1
@@ -72,7 +96,7 @@ def main() -> None:
     )
     params = pika.ConnectionParameters(
         host=config["RabbitMQ"]["host"],
-        port=int(config["RabbitMQ"]["port"]),
+        port=config["RabbitMQ"]["port"],
         virtual_host="/",
         heartbeat=60,
         credentials=credential,
@@ -94,10 +118,13 @@ def main() -> None:
 
     # get all accounts names
     accounts_names_list = list(config["accounts"])
-    # create Account's inctance for every account in config
+    # create Account's instance for every account in config
     accounts_list: tp.List[Account] = []
-    for x in range(len(accounts_names_list)):
-        accounts_list.append(Account(accounts_names_list[x], config))
+    for account_name in accounts_names_list:
+        if config["accounts"][account_name]["rws"] == "True":
+            accounts_list.append(RWSAccount(account_name, config))
+        else:
+            accounts_list.append(DefAccount(account_name, config))
         time.sleep(1)
 
     while True:
